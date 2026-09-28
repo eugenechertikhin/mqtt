@@ -22,7 +22,7 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func NewListener(debug bool, key string, cert string) *listener {
+func NewListener(debug bool, key string, cert string, allowAnonymous bool) *listener {
 	var l net.Listener
 	var err error
 
@@ -52,7 +52,7 @@ func NewListener(debug bool, key string, cert string) *listener {
 		log.Println("listen (plaintext) on address", l.Addr())
 	}
 
-	return &listener{debug: debug, listener: l, broker: NewBroker(debug)}
+	return &listener{debug: debug, listener: l, broker: NewBroker(debug, allowAnonymous)}
 }
 
 func (s *listener) Manage() {

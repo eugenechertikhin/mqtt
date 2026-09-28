@@ -2,7 +2,7 @@ package packet
 
 import (
 	"fmt"
-	"github.com/MajaSuite/mqtt/utils"
+	"github.com/eugenechertikhin/mqtt/utils"
 )
 
 type UnSubscribePacket struct {
@@ -42,10 +42,10 @@ func (u *UnSubscribePacket) Unpack(buf []byte) error {
 	}
 	u.Id = id
 
-	for left := len(buf) - 2; left > 0; {
+	// UNSUBSCRIBE payload is a list of topic filters only (no QoS byte)
+	for offset < len(buf) {
 		var topicLen uint16
 		var topic string
-		var qos uint8
 
 		topicLen, offset, err = utils.ReadInt16(buf, offset)
 		if err != nil {
@@ -57,10 +57,7 @@ func (u *UnSubscribePacket) Unpack(buf []byte) error {
 			return err
 		}
 
-		qos, offset, err = utils.ReadInt8(buf, offset)
-
-		u.Topics = append(u.Topics, SubscribePayload{Topic: topic, QoS: QoS(qos)})
-		left -= 2 + len(topic) + 1
+		u.Topics = append(u.Topics, SubscribePayload{Topic: topic})
 	}
 
 	return nil

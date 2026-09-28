@@ -2,7 +2,7 @@ package packet
 
 import (
 	"fmt"
-	"github.com/MajaSuite/mqtt/utils"
+	"github.com/eugenechertikhin/mqtt/utils"
 )
 
 type SubscribePayload struct {
@@ -64,7 +64,7 @@ func (s *SubscribePacket) Unpack(buf []byte) error {
 	}
 	s.Id = id
 
-	for left := len(buf) - 2; left > 0; {
+	for offset < len(buf) {
 		var topicLen uint16
 		topicLen, offset, err = utils.ReadInt16(buf, offset)
 		if err != nil {
@@ -79,9 +79,11 @@ func (s *SubscribePacket) Unpack(buf []byte) error {
 
 		var qos uint8
 		qos, offset, err = utils.ReadInt8(buf, offset)
+		if err != nil {
+			return err
+		}
 
 		s.Topics = append(s.Topics, SubscribePayload{Topic: topic, QoS: QoS(qos)})
-		left -= offset
 	}
 
 	return nil

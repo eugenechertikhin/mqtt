@@ -2,7 +2,7 @@ package packet
 
 import (
 	"fmt"
-	"github.com/MajaSuite/mqtt/utils"
+	"github.com/eugenechertikhin/mqtt/utils"
 )
 
 type PubRecPacket struct {

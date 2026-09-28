@@ -7,14 +7,15 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/MajaSuite/mqtt/broker"
-	"github.com/MajaSuite/mqtt/db"
+	"github.com/eugenechertikhin/mqtt/broker"
+	"github.com/eugenechertikhin/mqtt/db"
 )
 
 var (
-	cert  = flag.String("cert", "broker.crt", "path to broker certificate")
-	key   = flag.String("key", "broker.key", "path to broker private key")
-	debug = flag.Bool("debug", false, "print debuging hex dumps")
+	cert      = flag.String("cert", "broker.crt", "path to broker certificate")
+	key       = flag.String("key", "broker.key", "path to broker private key")
+	debug     = flag.Bool("debug", false, "print debuging hex dumps")
+	allowAnon = flag.Bool("allow-anonymous", false, "allow clients to connect without username/password")
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 		panic(err)
 	}
 
-	server := broker.NewListener(*debug, *key, *cert)
+	server := broker.NewListener(*debug, *key, *cert, *allowAnon)
 	if server == nil {
 		log.Panic("error start listener")
 	}

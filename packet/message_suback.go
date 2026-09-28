@@ -3,7 +3,7 @@ package packet
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/MajaSuite/mqtt/utils"
+	"github.com/eugenechertikhin/mqtt/utils"
 )
 
 type SubAckPacket struct {

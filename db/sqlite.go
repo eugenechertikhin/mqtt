@@ -3,7 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"github.com/MajaSuite/mqtt/packet"
+	"github.com/eugenechertikhin/mqtt/packet"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 )

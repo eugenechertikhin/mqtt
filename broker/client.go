@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MajaSuite/mqtt/packet"
+	"github.com/eugenechertikhin/mqtt/packet"
 )
 
 type Client struct {

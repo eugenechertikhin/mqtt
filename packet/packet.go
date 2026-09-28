@@ -122,9 +122,13 @@ func Create(buf byte) Packet {
 	return nil
 }
 
+// maxPacketSize bounds a single packet payload to guard against
+// memory-exhaustion (a client could otherwise announce a 256MB packet).
+const maxPacketSize = 1 << 20 // 1 MiB
+
 func ReadPacket(conn net.Conn, debug bool) (Packet, error) {
 	header := make([]byte, 2)
-	if n, err := conn.Read(header); n < 2 || err != nil {
+	if _, err := io.ReadFull(conn, header); err != nil {
 		return nil, io.ErrUnexpectedEOF
 	}
 
@@ -139,7 +143,7 @@ func ReadPacket(conn net.Conn, debug bool) (Packet, error) {
 				return nil, ErrInvalidPacketLength
 			}
 
-			if n, err := conn.Read(add); n < 1 || err != nil {
+			if _, err := io.ReadFull(conn, add); err != nil {
 				return nil, io.ErrUnexpectedEOF
 			}
 			header = append(header, add[0])
@@ -156,6 +160,10 @@ func ReadPacket(conn net.Conn, debug bool) (Packet, error) {
 		}
 	}
 
+	if packetLength < 0 || packetLength > maxPacketSize {
+		return nil, ErrInvalidPacketLength
+	}
+
 	if debug {
 		log.Printf("read: header: 0x%x, %d bytes\n", header[0], packetLength)
 	}
@@ -170,17 +178,9 @@ func ReadPacket(conn net.Conn, debug bool) (Packet, error) {
 
 	if packetLength != 0 {
 		payload := make([]byte, packetLength)
-		if n, err := conn.Read(payload); n < packetLength || err != nil {
-			if debug {
-				log.Printf("read only %d bytes, try to read last one\n", n)
-			}
-			last, err := conn.Read(payload[n:])
-			if err != nil {
-				return nil, io.ErrUnexpectedEOF
-			}
-			if debug {
-				log.Printf("read last %d bytes, seems fine now\n", last)
-			}
+		// ReadFull handles TCP segmentation: it reads exactly packetLength bytes
+		if _, err := io.ReadFull(conn, payload); err != nil {
+			return nil, io.ErrUnexpectedEOF
 		}
 
 		if debug {
@@ -244,8 +244,8 @@ func MatchTopic(mask string, topic string) bool {
 			break
 		}
 
-		// match at this level
-		if maskPart[i] == "*" || maskPart[i] == t[i] {
+		// match at this level ('+' is the MQTT single-level wildcard)
+		if maskPart[i] == "+" || maskPart[i] == t[i] {
 			if len(t) == i+1 {
 				if len(t) == len(maskPart) {
 					found = true
