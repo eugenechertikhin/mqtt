@@ -1,4 +1,4 @@
-module github.com/MajaSuite/mqtt
+module github.com/eugenechertikhin/mqtt
 
 go 1.14
 

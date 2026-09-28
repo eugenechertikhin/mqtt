@@ -1,8 +1,10 @@
 package broker
 
 import (
+	"crypto/tls"
 	"log"
 	"net"
+	"os"
 )
 
 type listener struct {
@@ -11,13 +13,44 @@ type listener struct {
 	broker   *Broker
 }
 
-func NewListener(debug bool, key string, cert string) *listener {
-	l, err := net.Listen("tcp", "0.0.0.0:1883")
-	if err != nil {
-		return nil
+// fileExists reports whether path points to an existing regular file.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
 	}
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
 
-	log.Println("listen on address", l.Addr())
+func NewListener(debug bool, key string, cert string) *listener {
+	var l net.Listener
+	var err error
+
+	// use TLS only when both certificate and key files are present;
+	// otherwise fall back to plaintext
+	if fileExists(cert) && fileExists(key) {
+		certificate, err := tls.LoadX509KeyPair(cert, key)
+		if err != nil {
+			// files exist but are unusable - fail loudly instead of a
+			// silent downgrade to plaintext
+			log.Println("error load tls certificate/key:", err)
+			return nil
+		}
+
+		config := &tls.Config{Certificates: []tls.Certificate{certificate}}
+		l, err = tls.Listen("tcp", "0.0.0.0:8883", config)
+		if err != nil {
+			log.Println("error start tls listener:", err)
+			return nil
+		}
+		log.Println("listen (tls) on address", l.Addr())
+	} else {
+		l, err = net.Listen("tcp", "0.0.0.0:1883")
+		if err != nil {
+			return nil
+		}
+		log.Println("listen (plaintext) on address", l.Addr())
+	}
 
 	return &listener{debug: debug, listener: l, broker: NewBroker(debug)}
 }

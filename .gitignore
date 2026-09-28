@@ -4,5 +4,6 @@
 *.crt
 *.key
 *.db
+.netrc
 mqtt
 client_example/client_example
