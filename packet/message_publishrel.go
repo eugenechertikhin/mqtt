@@ -43,7 +43,8 @@ func (p *PubRelPacket) Pack() []byte {
 	offset := 0
 	buf := make([]byte, 4)
 
-	offset = utils.WriteInt8(buf, offset, byte(PUBREL)<<4)
+	// PUBREL fixed header flags must be 0b0010 per MQTT 3.1.1
+	offset = utils.WriteInt8(buf, offset, byte(PUBREL)<<4|0x02)
 	offset = utils.WriteInt8(buf, offset, byte(p.Length()))
 	offset = utils.WriteInt16(buf, offset, p.Id)
 

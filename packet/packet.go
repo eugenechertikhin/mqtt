@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -187,7 +186,12 @@ func ReadPacket(conn net.Conn, debug bool) (Packet, error) {
 			log.Printf("read packet payload:\n%s", hex.Dump(payload))
 		}
 
-		pkt.Unpack(payload)
+		if err := pkt.Unpack(payload); err != nil {
+			if debug {
+				log.Println("read: error unpack packet", err)
+			}
+			return nil, err
+		}
 	}
 
 	if debug {
@@ -225,43 +229,4 @@ func WriteLength(len int) []byte {
 	buf := make([]byte, n)
 	binary.PutUvarint(buf, uint64(len))
 	return buf
-}
-
-func MatchTopic(mask string, topic string) bool {
-	t := strings.Split(topic, "/")
-
-	var found bool
-	var i int = 0 // start from first level
-	maskPart := strings.Split(mask, "/")
-
-	for {
-		if len(maskPart) <= i || len(t) <= i {
-			break
-		}
-
-		if maskPart[i] == "#" {
-			found = true
-			break
-		}
-
-		// match at this level ('+' is the MQTT single-level wildcard)
-		if maskPart[i] == "+" || maskPart[i] == t[i] {
-			if len(t) == i+1 {
-				if len(t) == len(maskPart) {
-					found = true
-					break
-				}
-				break
-			}
-
-			// try next level
-			i++
-			continue
-		}
-
-		// doesn't match
-		break
-	}
-
-	return found
 }

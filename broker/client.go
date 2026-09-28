@@ -25,6 +25,7 @@ type Client struct {
 	broker       chan packet.Packet // channel to send message to broker
 	done         chan struct{}      // closed on Stop to unblock writers/readers
 	stopOnce     sync.Once
+	notifyOnce   sync.Once
 }
 
 func NewClient(conn net.Conn, id string, session bool, broker chan packet.Packet, keepAlive uint16, debug bool) *Client {
@@ -55,7 +56,7 @@ func (c *Client) Start() {
 
 			pkt, err := packet.ReadPacket(c.conn, c.debug)
 			if err != nil || pkt == nil {
-				c.broker <- &packet.PacketImpl{ClientId: c.clientId}
+				c.notifyDisconnect()
 				log.Printf("%s error read packet, disconnected: %s", c.clientId, err)
 				return
 			}
@@ -77,7 +78,7 @@ func (c *Client) Start() {
 				log.Printf("%s message to send %s", c.clientId, p)
 			}
 			if err := packet.WritePacket(c.conn, p, c.debug); err != nil {
-				c.broker <- &packet.PacketImpl{ClientId: c.clientId} // notify broker of unexpected disconnect
+				c.notifyDisconnect() // notify broker of unexpected disconnect
 				log.Printf("%s disconnect while write to socket %s", c.clientId, err)
 				return
 			}
@@ -90,13 +91,32 @@ func (c *Client) Start() {
 	}
 }
 
-// Send enqueues a packet for delivery to the client. It never panics on a
-// stopped client: if the client has been stopped the packet is dropped.
+// Send enqueues a packet for delivery to the client. It never blocks and never
+// panics on a stopped client: if the client is stopped or its outbound buffer
+// is full the packet is dropped, so a single slow client cannot stall the
+// broker. Unacknowledged QoS>0 packets remain in the ack map for redelivery.
 func (c *Client) Send(pkt packet.Packet) {
 	select {
 	case c.channel <- pkt:
 	case <-c.done:
+	default:
+		if c.debug {
+			log.Printf("%s outbound buffer full, dropping %s", c.clientId, pkt)
+		}
 	}
+}
+
+// notifyDisconnect tells the broker this client's connection has failed. It is
+// a no-op when the client was deliberately stopped (e.g. a session takeover on
+// reconnect) so the old connection's failure cannot tear down the new client,
+// and it fires at most once so reader and writer cannot both report it.
+func (c *Client) notifyDisconnect() {
+	if c.stopped() {
+		return
+	}
+	c.notifyOnce.Do(func() {
+		c.broker <- &packet.PacketImpl{ClientId: c.clientId}
+	})
 }
 
 func (c *Client) stopped() bool {

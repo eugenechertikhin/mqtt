@@ -131,12 +131,18 @@ func (c *ConnPacket) Unpack(buf []byte) error {
 			return err
 		}
 		willTopic, offset, err = utils.ReadString(buf, offset, int(willTopicLen))
+		if err != nil {
+			return err
+		}
 
 		willMessageLen, offset, err = utils.ReadInt16(buf, offset)
 		if err != nil {
 			return err
 		}
 		willMessage, offset, err = utils.ReadString(buf, offset, int(willMessageLen))
+		if err != nil {
+			return err
+		}
 
 		c.Will = &WillMessage{
 			QoS:       willQoS,
@@ -148,24 +154,32 @@ func (c *ConnPacket) Unpack(buf []byte) error {
 		}
 	}
 
-	loginLen, offset, err := utils.ReadInt16(buf, offset)
-	if err != nil {
-		return err
+	// username and password are present in the payload only when their
+	// respective CONNECT flags are set
+	if usernameFlag {
+		var loginLen uint16
+		loginLen, offset, err = utils.ReadInt16(buf, offset)
+		if err != nil {
+			return err
+		}
+
+		c.Username, offset, err = utils.ReadString(buf, offset, int(loginLen))
+		if err != nil {
+			return err
+		}
 	}
 
-	c.Username, offset, err = utils.ReadString(buf, offset, int(loginLen))
-	if err != nil {
-		return err
-	}
+	if passwordFlag {
+		var passLen uint16
+		passLen, offset, err = utils.ReadInt16(buf, offset)
+		if err != nil {
+			return err
+		}
 
-	passLen, offset, err := utils.ReadInt16(buf, offset)
-	if err != nil {
-		return err
-	}
-
-	c.Password, offset, err = utils.ReadString(buf, offset, int(passLen))
-	if err != nil {
-		return err
+		c.Password, offset, err = utils.ReadString(buf, offset, int(passLen))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
